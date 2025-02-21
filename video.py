@@ -31,7 +31,7 @@ class VideoRecorder(object):
                                         width=self.width,
                                         camera_id=0)
             else:                
-                frame = env.render(mode='rgb_array', height=self.height, width = self.width) # 
+                frame = env.render()
                     
             self.frames.append(frame)
             self.num_recorded_frames+=1

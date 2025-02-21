@@ -367,7 +367,7 @@ class Workspace(object):
         for episode in range(self.cfg.num_eval_episodes):
             observes = []
             
-            obs = self.eval_env.reset()
+            obs, info = self.eval_env.reset()
             observes.append(obs)
             self.eval_video_recorder.init(enabled=(episode == 0))
             episode_reward = 0
@@ -380,7 +380,7 @@ class Workspace(object):
             while not done:
                 with utils.eval_mode(agent):                                        
                     action = agent.act(obs, goal_env=self.goal_env,  sample=False)
-                next_obs, reward, done, info = self.eval_env.step(action)
+                next_obs, reward, done, truncated, info = self.eval_env.step(action)
                 self.eval_video_recorder.record(self.eval_env)
                 episode_reward += reward
                 episode_step += 1
@@ -440,9 +440,10 @@ class Workspace(object):
         if self.cfg.backward_proprioceptive_only: # to make achieved_goal in full_initial_states as gripper position
             self.env.set_proprioceptive_only(True)
         for i in range(1000):
-            obs = self.env.reset()
+            obs, info = self.env.reset()
             initial_states.append(obs[:self.env.obs_dim])
             full_initial_states.append(obs)
+
         initial_states = np.stack(initial_states, axis =0)
         full_initial_states = np.stack(full_initial_states, axis =0)
         if self.cfg.backward_proprioceptive_only:
@@ -450,7 +451,7 @@ class Workspace(object):
 
                 
         if self.cfg.use_curriculum:
-            temp_obs = self.hgg_goal_eval_env.reset()
+            temp_obs, info = self.hgg_goal_eval_env.reset()
             recent_sampled_forward_goals.put(self.hgg_goal_env.convert_obs_to_dict(temp_obs)['achieved_goal'].copy())
         
         
@@ -460,7 +461,7 @@ class Workspace(object):
             predetermined_initial_goals = []
             predetermined_desired_goals = []
             for i in range(K):
-                temp_obs = self.hgg_goal_env.convert_obs_to_dict(self.hgg_env.reset())
+                temp_obs = self.hgg_goal_env.convert_obs_to_dict(self.hgg_env.reset()[0])
                 goal_a = temp_obs['observation'].copy()
                 if self.cfg.backward_proprioceptive_only:
                     goal_a = add_noise_to_goal(goal_a, self.cfg.env)
@@ -475,7 +476,7 @@ class Workspace(object):
                 if self.cfg.backward_proprioceptive_only:
                     self.env.set_proprioceptive_only(False)
 
-                obs = self.env.reset()
+                obs, info = self.env.reset()
                 print('done = True at step : ', self.step)
                 if option=='backward':
                     forward_episode +=1
@@ -513,7 +514,7 @@ class Workspace(object):
                                 
                                 if self.cfg.hgg_kwargs.match_sampler_kwargs.num_episodes==K:                                        
                                     for i in range(self.cfg.hgg_kwargs.match_sampler_kwargs.num_episodes):
-                                        temp_obs = self.hgg_goal_env.convert_obs_to_dict(self.hgg_env.reset())
+                                        temp_obs = self.hgg_goal_env.convert_obs_to_dict(self.hgg_env.reset()[0])
                                         goal_a = temp_obs['achieved_goal'].copy()
                                         if self.cfg.backward_proprioceptive_only:
                                             goal_a = add_noise_to_goal(goal_a, self.cfg.env)
@@ -524,7 +525,7 @@ class Workspace(object):
                                 elif self.cfg.hgg_kwargs.match_sampler_kwargs.num_episodes > K:
 
                                     for i in range(self.cfg.hgg_kwargs.match_sampler_kwargs.num_episodes):
-                                        temp_obs = self.hgg_goal_env.convert_obs_to_dict(self.hgg_env.reset())
+                                        temp_obs = self.hgg_goal_env.convert_obs_to_dict(self.hgg_env.reset()[0])
                                         goal_a = temp_obs['achieved_goal'].copy()
                                         if self.cfg.backward_proprioceptive_only:
                                             goal_a = add_noise_to_goal(goal_a, self.cfg.env)
@@ -880,7 +881,7 @@ class Workspace(object):
 
 
 
-            next_obs, reward, done, info = self.env.step(action)
+            next_obs, reward, done, truncated, info = self.env.step(action)
             
             episode_reward += reward
             

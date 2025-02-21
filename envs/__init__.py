@@ -1,6 +1,7 @@
-import gym, gym_robotics
+import gymnasium
+import gymnasium_robotics
 import os
-gym_base = os.path.dirname(gym_robotics.__file__)
+gym_base = os.path.dirname(gymnasium_robotics.__file__)
 base = os.path.dirname(os.path.abspath(__file__))
 if not os.path.isdir(os.path.join(base, 'assets/stls')):
     try:

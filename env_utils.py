@@ -1,6 +1,6 @@
 import numpy as np
-import gym            
-from gym.spaces import Box
+import gymnasium as gym            
+from gymnasium.spaces import Box
 import torch
 
 class NonEpisodicWrapper(object):
@@ -240,15 +240,21 @@ class NonEpisodicWrapper(object):
         return self.get_pure_obs(obs)
 
     def step(self, action):
-        next_obs, reward, done, info = self.env.step(action)        
-        return self._get_obs_by_obs_type(next_obs, self.option).astype(np.float32), reward, done, info
+        next_obs, reward, done, truncated, info = self.env.step(action)        
+        return self._get_obs_by_obs_type(next_obs, self.option).astype(np.float32), reward, done, truncated, info
     
     def reset(self):
-        return self._get_obs_by_obs_type(self.env.reset(), self.option).astype(np.float32)
+        # print(self.env)
+        # print(self.env.reset())
+        obs, info = self.env.reset()
+        return self._get_obs_by_obs_type(obs, self.option).astype(np.float32), info
 
 
     def __getattr__(self, attrname):
         return getattr(self.env, attrname)
+
+    def render(self): 
+        return self.env.render() 
 
 
 class StateWrapper(object):
@@ -274,7 +280,8 @@ class StateWrapper(object):
     def __getattr__(self, attrname):
         return getattr(self.env, attrname)
 
-
+    def render(self): 
+        return self.env.render() 
 
 def concatenate(*args):
     arg_list = [arg for arg in args]    
@@ -286,7 +293,7 @@ def concatenate(*args):
 
 
 # For EARL envs (already unwrapped env)
-class WraptoGoalEnv(object): 
+class WraptoGoalEnv(gym.Env): 
     '''
     NOTE : Make the env as a goal env
     '''
@@ -303,7 +310,7 @@ class WraptoGoalEnv(object):
         
         self.sparse_reward_type = sparse_reward_type
 
-        obs = self.env.reset()
+        obs, info = self.env.reset()
         obs_dict = self.convert_obs_to_dict(obs)
         
         self.obs_dim = obs_dict['observation'].shape[0]
@@ -523,15 +530,18 @@ class WraptoGoalEnv(object):
 
         else:
             raise NotImplementedError
-
+    
+    def reset(self, *args, **kwargs): 
+        return self.env.reset(*args, **kwargs) 
+    
     # for EARL env
     # used when HER relabeling
     def compute_reward(self, obs, proprioceptive_only=False):        
         # Assume sparse reward!
         if self.sparse_reward_type=='positive':            
-            return (self.is_successful(obs=obs, proprioceptive_only=proprioceptive_only)).astype(np.float)
+            return (self.is_successful(obs=obs, proprioceptive_only=proprioceptive_only)).astype(np.float32)
         elif self.sparse_reward_type=='negative':
-            return (self.is_successful(obs=obs, proprioceptive_only=proprioceptive_only)).astype(np.float)-1.0
+            return (self.is_successful(obs=obs, proprioceptive_only=proprioceptive_only)).astype(np.float32)-1.0
     
     # used when HER relabeling
     def is_successful(self, obs, proprioceptive_only=False):
@@ -597,13 +607,16 @@ class WraptoGoalEnv(object):
 
     def __getattr__(self, attrname):
         return getattr(self.env, attrname)
+    
+    def render(self): 
+        return self.env.render() 
 
 
 ############### for AIM
 
 from collections import OrderedDict
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 KEY_ORDER = ['observation', 'achieved_goal', 'desired_goal']
 
 
@@ -694,8 +707,8 @@ class HERGoalEnvWrapper(object):
         ])
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-        return self.convert_dict_to_obs(obs), reward, done, info
+        obs, reward, done, truncated, info = self.env.step(action)
+        return self.convert_dict_to_obs(obs), reward, done, truncated, info
 
     def seed(self, seed=None):
         return self.env.seed(seed)
@@ -706,8 +719,8 @@ class HERGoalEnvWrapper(object):
     def compute_reward(self, achieved_goal, desired_goal, *args, **kwargs): # info=None,
         return self.env.compute_reward(achieved_goal, desired_goal, *args, **kwargs)
 
-    def render(self, mode='human', **kwargs):
-        return self.env.render(mode, **kwargs)
+    def render(self):
+        return self.env.render()
 
     def close(self):
         return self.env.close()
@@ -800,9 +813,9 @@ class RewardOffsetWrapper(gym.Wrapper):
         self.reward_offset = reward_offset
         
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)        
+        obs, reward, done, truncated, info = self.env.step(action)        
         reward += self.reward_offset
-        return obs, reward, done, info
+        return obs, reward, done, truncated, info
     
     def compute_reward(self, achieved_goal, desired_goal, *args, **kwargs): # info=None        
         reward = self.env.compute_reward(achieved_goal, desired_goal, *args, **kwargs) # info
@@ -811,6 +824,8 @@ class RewardOffsetWrapper(gym.Wrapper):
     def __getattr__(self, attrname):
         return getattr(self.env, attrname)
 
+    def render(self): 
+        return self.env.render() 
 
 
 class DoneOnSuccessWrapper(gym.Wrapper):
@@ -827,7 +842,7 @@ class DoneOnSuccessWrapper(gym.Wrapper):
         #     assert reward_offset==0.0, 'assume earl (sawyer, tabletop) outputs 0,1 sparse reward'
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, done, truncated, info = self.env.step(action)
         if self.earl_env:
             # currently, done is earl done 
             info.update({'earl_done' : copy.deepcopy(done)})
@@ -837,7 +852,7 @@ class DoneOnSuccessWrapper(gym.Wrapper):
         if self.earl_env:
             done  = done or self.env.is_successful(obs)            
         reward += self.reward_offset
-        return obs, reward, done, info
+        return obs, reward, done, truncated, info
 
     def compute_reward(self, achieved_goal, desired_goal, *args, **kwargs): # info=None
         # used in episodic aim (with HERGoalEnvWrapper)        
@@ -850,9 +865,11 @@ class DoneOnSuccessWrapper(gym.Wrapper):
     def __getattr__(self, attrname):
         return getattr(self.env, attrname)
 
+    def render(self): 
+        return self.env.render() 
 
 
-class RewardChangeWrapperEnv(object): 
+class RewardChangeWrapperEnv(gym.Env): 
     '''
     NOTE : Reward function change according to user's intention. This wrapper should be used right after gym.make!
     '''
@@ -866,7 +883,7 @@ class RewardChangeWrapperEnv(object):
         self.env.set_proprioceptive_only(proprioceptive_only)
 
     def step(self, action):
-        next_obs, reward, done, info = self.env.step(action)
+        next_obs, reward, done, truncated, info = self.env.step(action)
         if self.env_name in ['sawyer_door']: #[ee(3), grip(1), obj(3)]
             assert (next_obs.shape[-1]==14 or next_obs.shape[-1]==17 or next_obs.shape[-1]==20)
             # reward [0, 1]            
@@ -900,10 +917,16 @@ class RewardChangeWrapperEnv(object):
         else: # no object env -> use the given sparse reward as it is
             pass
 
-        return next_obs, reward, done, info
+        return next_obs, reward, done, truncated, info
+    
+    def reset(self, *args, **kwargs): 
+        return self.env.reset(*args, **kwargs) 
 
     def compute_reward(self, obs=None, info=None):
         raise NotImplementedError
 
     def __getattr__(self, attrname):
         return getattr(self.env, attrname)
+
+    def render(self): 
+        return self.env.render() 

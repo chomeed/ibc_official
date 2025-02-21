@@ -1,9 +1,9 @@
 import numpy as np
-import gym
+import gymnasium as gym
 import dm_env
 from dm_env import specs
-from bsuite.utils.gym_wrapper import DMEnvFromGym, space2spec
-
+# from bsuite.utils.gym_wrapper import DMEnvFromGym, space2spec
+from .gym_wrapper import DMEnvFromGym, space2spec
 from .timestep import ExtendedTimeStep
 
 

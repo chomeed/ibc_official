@@ -4,7 +4,7 @@ import random
 from collections import deque, defaultdict
 import pickle as pkl
 
-import gym
+import gymnasium as gym
 import pathlib
 import numpy as np
 import re

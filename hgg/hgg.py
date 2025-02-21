@@ -78,16 +78,16 @@ class MatchSampler:
 									'point_umaze' : 0.6,									
 								}
 
-		self.dim = np.prod(self.env.convert_obs_to_dict(self.env.reset())['achieved_goal'].shape)
+		self.dim = np.prod(self.env.convert_obs_to_dict(self.env.reset()[0])['achieved_goal'].shape)
 		self.delta = self.success_threshold[env_name] #self.env.distance_threshold
 		self.goal_distance = goal_distance
 
 		self.length = num_episodes # args.episodes
 		
 		if self.agent_type=='forward':		
-			init_goal = self.eval_env.convert_obs_to_dict(self.eval_env.reset())['achieved_goal'].copy()
+			init_goal = self.eval_env.convert_obs_to_dict(self.eval_env.reset()[0])['achieved_goal'].copy()
 		elif self.agent_type=='backward':		
-			init_goal = self.eval_env.convert_obs_to_dict(self.eval_env.reset())['desired_goal'].copy()
+			init_goal = self.eval_env.convert_obs_to_dict(self.eval_env.reset()[0])['desired_goal'].copy()
 
 		self.pool = np.tile(init_goal[np.newaxis,:],[self.length,1])+np.random.normal(0,self.delta,size=(self.length,self.dim))
 		
@@ -95,13 +95,13 @@ class MatchSampler:
 		if self.return_init_candidates_for_backward_proprioceptive:
 			if self.agent_type=='forward':		
 				if self.env_name in ['tabletop_manipulation', 'sawyer_door']: # pure_obs==ag
-					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset())['achieved_goal'].copy()
+					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset()[0])['achieved_goal'].copy()
 				elif self.env_name in ['fetch_pickandplace_ergodic', 'fetch_push_ergodic']:
-					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset())['observation'][..., :3].copy()
+					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset()[0])['observation'][..., :3].copy()
 				elif self.env_name in ['fetch_reach_ergodic']:
-					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset())['observation'][..., :3].copy()
+					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset()[0])['observation'][..., :3].copy()
 				elif self.env_name in ['point_umaze']:
-					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset())['observation'][..., :2].copy()
+					init_goal_for_backward_proprioceptive = self.eval_env.convert_obs_to_dict(self.eval_env.reset()[0])['observation'][..., :2].copy()
 				else:
 					raise NotImplementedError
 			
@@ -117,7 +117,7 @@ class MatchSampler:
 		# estimating diameter
 		self.max_dis = 0
 		for i in range(1000):
-			obs = self.env.convert_obs_to_dict(self.env.reset())
+			obs = self.env.convert_obs_to_dict(self.env.reset()[0])
 			dis = self.goal_distance(obs['achieved_goal'],obs['desired_goal'])
 			if dis>self.max_dis: self.max_dis = dis
 	
@@ -209,7 +209,7 @@ class MatchSampler:
 	# 	return self.pool[idx].copy()
 
 	def update(self, initial_goals, desired_goals):
-		# list of ag(for earl env) or pure_obs(for non earl env), dg from env.reset() (used for target in hgg) 
+		# list of ag(for earl env) or pure_obs(for non earl env), dg from env.reset()[0] (used for target in hgg) 
 		if self.achieved_trajectory_pool.counter==0:
 			self.pool = copy.deepcopy(desired_goals)
 			print('hgg use desired_goal from T* due to pool.counter==0')

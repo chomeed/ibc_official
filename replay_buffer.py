@@ -532,7 +532,7 @@ class HindsightExperienceReplayWrapperVer2(object):
             ])
             next_obs_idxs = (
                 np.random.random(num_future_goals) * possible_future_obs_lens
-            ).astype(np.int)
+            ).astype(np.int64)
             future_obs_idxs = np.array([
                 self._idx_to_future_obs_idx[ids][next_obs_idxs[i]] if self._idx_to_future_obs_idx[ids].shape[0]!=0 else ids # original next_obs idx
                 for i, ids in enumerate(future_indices) 
